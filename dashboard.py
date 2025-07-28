@@ -10,17 +10,31 @@ from collections import defaultdict
 from io import StringIO
 from itertools import zip_longest
 from fpdf import FPDF
-import tempfile
- 
-def set_background_gradient():
-    st.markdown("""
-        <style>
-        body {
-            background: linear-gradient(to right, #f0f4c3, #aed581);
-        }
-        </style>
-    """, unsafe_allow_html=True)
+import streamlit.components.v1 as components
 
+
+# CSS for print page breaks
+PRINT_CSS = """
+<style>
+@media print {
+  .pagebreak { page-break-after: always; }
+}
+</style>
+"""
+
+# Function to render a Print button
+def render_print_button():
+    st.markdown(PRINT_CSS, unsafe_allow_html=True)
+    components.html(
+        """
+        <button onclick="window.print()" 
+                style="padding:8px 16px;font-size:16px;
+                       background:#4CAF50;color:white;border:none;
+                       border-radius:4px;cursor:pointer;">
+          🖨️ Print Report
+        </button>
+        """, height=60)
+    
 # ========== Scraping Functions ==========
 def fetch_html(p, q, r):
     url = "https://results.biserawalpindi.edu.pk/Result_Detail"
@@ -283,7 +297,7 @@ def plot_enhanced_bar(df, title):
 #########
 # ========== Streamlit Pages ==========
 def page1():
-    st.title("B.I.S.E RAWALPINDI SSC Annual Examination 2025 Institution Result Dashboard")    
+    st.title("B.I.S.E RAWALPINDI SSC Annual Examination 2025 Institution Result Analysis Dashboard")    
     if 'processed_data' not in st.session_state:
         st.session_state.processed_data = None
     if 'scraped_results' not in st.session_state:
@@ -399,16 +413,16 @@ def page1():
                         mime='application/json',
                     )
                 
-                if st.button("Proceed to Visualization"):
-                    st.session_state.page = "page2"
-                    st.rerun()
+                # if st.button("Proceed to Visualization"):
+                #     st.session_state.page = "page2"
+                #     st.rerun()
                 
             except Exception as e:
                 st.error(f"Error during scraping: {str(e)}")
                 st.session_state.scraping_complete = False
 
 def page2():
-    st.title("Result Analysis Dashboard")
+    st.title("B.I.S.E RAWALPINDI SSC Annual Examination 2025 Institution Result Analysis Dashboard")
     
     if 'processed_data' not in st.session_state and 'scraped_results' not in st.session_state:
         st.warning("No data available. Please go back to Page 1 and upload or scrape data first.")
@@ -434,7 +448,7 @@ def page2():
     
     with tab1:
         st.subheader("Pass vs Reappear")
-        fig, ax = plt.subplots(figsize=(4, 4))
+        fig, ax = plt.subplots(figsize=(2, 2))
         ax.pie(status_counts.values(), labels=status_counts.keys(), autopct='%1.1f%%',
             colors=['#0d47a1', '#90caf9'], startangle=140)
         ax.set_title("Overall Result: Pass vs Reappear")
@@ -510,95 +524,110 @@ def page2():
 
     # Tab 4 - Teacher Wise Report
     with tab4:
-        st.subheader("Compile Result by Teacher")
-        teacher_name = st.text_input("Enter Teacher Name")
+        st.subheader("Teacher-wise Comparative Report")
 
-        roll_map = {}
-        if isinstance(data_source, pd.DataFrame):
-            for _, row in data_source.iterrows():
-                roll_map[row['Roll No']] = row
-        else:
-            for student in data_source:
-                roll_map[student['Roll No']] = student
+        if "teacher_entries" not in st.session_state:
+            st.session_state.teacher_entries = []
 
-        selected_rolls = st.multiselect("Select Roll Numbers", list(roll_map.keys()))
+        if st.button("Add Teacher"):
+            st.session_state.teacher_entries.append({
+                "name": "",
+                "rolls": [],
+                "subject": "",
+                "show_graphs": False  # Track if graphs should be shown
+            })
 
-        if selected_rolls:
-            teacher_results = [roll_map[r] for r in selected_rolls if r in roll_map]
-            if isinstance(teacher_results[0], pd.Series):
-                teacher_results = [r.to_dict() for r in teacher_results]
+        # Roll number mapping
+        roll_map = {
+            r['Roll No']: r for r in data_source
+        } if isinstance(data_source, list) else {
+            row['Roll No']: row.to_dict() for _, row in data_source.iterrows()
+        }
 
-            pass_count = sum(1 for s in teacher_results if s.get("Status", "RE-APPEAR") == "PASS")
-            total = len(teacher_results)
+        # Extract subject list
+        all_subjects = set()
+        for r in roll_map.values():
+            for subj in r.get("Subjects", []):
+                all_subjects.add(subj.get("Subject", ""))
+        all_subjects = sorted(all_subjects)
 
-            fig, ax = plt.subplots(figsize=(4, 4))
-            ax.pie([pass_count, total - pass_count], labels=["Pass", "Reappear"], autopct='%1.1f%%',
-                   colors=['#2e7d32', '#ef5350'], startangle=90)
-            ax.set_title(f"{teacher_name} Result Summary")
-            st.pyplot(fig)
+        for idx, teacher in enumerate(st.session_state.teacher_entries):
+            st.markdown(f"Teacher {idx + 1}")
 
-    # Generate Full Report
-    st.markdown("---")
-    st.subheader("📄 Generate Full Result Report")
+            teacher["name"] = st.text_input(
+                f"Name of Teacher {idx+1}", value=teacher["name"], key=f"name_{idx}"
+            )
 
-    if st.button("Generate Full Markdown & PDF Report"):
-        # --- Build Markdown Report ---
-        md_report = "# BISE Result Dashboard Report\n\n"
-        md_report += "## 1. Overall Performance\n"
-        total_students = sum(status_counts.values())
-        passed = status_counts["PASS"]
-        pass_pct = 100 * passed / total_students
-        md_report += f"- **Total Students**: {total_students}\n"
-        md_report += f"- **Passed**: {passed}\n"
-        md_report += f"- **Reappeared**: {total_students - passed}\n"
-        md_report += f"- **Pass Percentage**: {pass_pct:.2f}%\n"
-        md_report += f"- **Reappear Percentage**: {100 - pass_pct:.2f}%\n\n"
+            teacher["subject"] = st.selectbox(
+                f"Subject Taught by {teacher['name'] or f'Teacher {idx+1}'}",
+                all_subjects,
+                index=all_subjects.index(teacher["subject"]) if teacher["subject"] in all_subjects else 0,
+                key=f"subject_{idx}"
+            )
 
-        md_report += "## 2. Average Scores by Subject\n"
-        for index, row in df_avg.iterrows():
-            md_report += f"- **{index}**: {row['Average']:.1f}\n"
+            # Checkboxes for selecting roll numbers
+            selected_rolls = []
+            with st.expander(f"Select Students (Roll Numbers) for {teacher['name'] or f'Teacher {idx+1}'}"):
+                for roll_no in roll_map.keys():
+                    checked = roll_no in teacher["rolls"]
+                    if st.checkbox(f"{roll_no}", checked, key=f"{roll_no}_{idx}"):
+                        selected_rolls.append(roll_no)
 
-        md_report += "\n## 3. Score Distribution Buckets\n"
-        md_report += df_buckets.to_markdown()
+            teacher["rolls"] = selected_rolls
 
-        md_report += "\n\n## 4. Subject Group Definitions\n"
-        for group, subs in subject_groups.items():
-            md_report += f"- **{group}**: {', '.join(subs)}\n"
+            # Save selection
+            if st.button(f"Save Selections for Teacher {idx+1}"):
+                teacher["show_graphs"] = True
 
-        md_report += "\n\n## 5. Teacher-wise Summary (Selected Only)\n"
-        if selected_rolls:
-            md_report += f"### {teacher_name}'s Selected Students:\n"
-            md_report += f"- Total Students: {total}\n"
-            md_report += f"- Pass Percentage: {(100 * pass_count / total):.2f}%\n"
-            for student in teacher_results:
-                md_report += f"  - {student['Roll No']}: {student['Student Name']} - *{student['Status']}*\n"
-        else:
-            md_report += "No specific teacher selected for summary.\n"
+            if teacher.get("show_graphs", False):
+                selected_results = [roll_map[r] for r in teacher["rolls"] if r in roll_map]
+                selected_subject = teacher["subject"]
 
-        # --- Save Markdown Report (.md) ---
-        md_temp = tempfile.NamedTemporaryFile(delete=False, suffix=".md", mode='w', encoding='utf-8')
-        md_temp.write(md_report)
-        md_temp.close()
+                pass_count = 0
+                subject_scores = []
 
-        with open(md_temp.name, "rb") as md_file:
-            st.download_button("📥 Download Markdown Report", md_file, file_name="full_result_report.md")
+                for student in selected_results:
+                    subjects = student.get("Subjects", [])
+                    for subj in subjects:
+                        if subj.get("Subject") == selected_subject:
+                            try:
+                                score = float(subj.get("Total", 0))
+                                if student.get("Status", "").upper() == "PASS":
+                                    pass_count += 1
+                                subject_scores.append(score)
+                            except (ValueError, TypeError):
+                                continue
 
-        # --- Convert Markdown to PDF via FPDF ---
-        pdf = FPDF()
-        pdf.add_page()
-        pdf.set_auto_page_break(auto=True, margin=15)
-        pdf.set_font("Arial", size=12)
+                total = len(selected_results)
 
-        for line in md_report.split("\n"):
-            pdf.multi_cell(0, 10, txt=line)
+                col1, col2 = st.columns(2)
 
-        pdf_temp = tempfile.NamedTemporaryFile(delete=False, suffix=".pdf")
-        pdf.output(pdf_temp.name)
+                with col1:
+                    st.markdown(f"**{pass_count} Passed** / **{total - pass_count} Reappeared**")
 
-        with open(pdf_temp.name, "rb") as pdf_file:
-            st.download_button("📥 Download PDF Report", pdf_file, file_name="full_result_report.pdf")
+                    if total > 0:
+                        fig, ax = plt.subplots(figsize=(3.5, 3.5))
+                        ax.pie(
+                            [pass_count, total - pass_count],
+                            labels=["Pass", "Reappear"],
+                            autopct='%1.1f%%',
+                            colors=['#2e7d32', '#ef5350'],
+                            startangle=90
+                        )
+                        ax.set_title(f"{teacher['name']} - {selected_subject}")
+                        st.pyplot(fig)
+                    else:
+                        st.warning("No students selected for this teacher to display pie chart.")
 
-
+                with col2:
+                    if subject_scores:
+                        fig, ax = plt.subplots(figsize=(5, 3))
+                        sns.histplot(subject_scores, bins=10, kde=True, ax=ax, color="skyblue")
+                        ax.set_title(f"Distribution of Marks in {selected_subject}")
+                        ax.set_xlabel("Marks")
+                        st.pyplot(fig)
+                    else:
+                        st.info("No valid scores available for selected subject.")
     
     if st.button("Back to Data Input Page"):
         st.session_state.page = "page1"
@@ -607,7 +636,6 @@ def page2():
 # ========== Main App ==========
 # Modify main()
 def main():
-    set_background_gradient()
 
     if 'page' not in st.session_state:
         st.session_state.page = "page1"
