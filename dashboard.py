@@ -8,8 +8,20 @@ import matplotlib.pyplot as plt
 import seaborn as sns
 from collections import defaultdict
 from io import StringIO
+from itertools import zip_longest
+from fpdf import FPDF
+import tempfile
+ 
+def set_background_gradient():
+    st.markdown("""
+        <style>
+        body {
+            background: linear-gradient(to right, #f0f4c3, #aed581);
+        }
+        </style>
+    """, unsafe_allow_html=True)
 
-# ========== Scraping Functions (Same as before) ==========
+# ========== Scraping Functions ==========
 def fetch_html(p, q, r):
     url = "https://results.biserawalpindi.edu.pk/Result_Detail"
     params = {"p": p, "q": q, "r": r}
@@ -104,105 +116,178 @@ def scrape_data(p_values, q=2, r=2025):
     status_text.text("Scraping complete!")
     return all_results
 
-# ========== Visualization Functions ==========
+# ========== Data Processing Functions ==========
+def process_uploaded_file(uploaded_file):
+    try:
+        if uploaded_file.type == "application/json":
+            return pd.read_json(uploaded_file)
+        else:
+            return pd.read_csv(uploaded_file)
+    except Exception as e:
+        st.error(f"Error processing file: {str(e)}")
+        return None
+
 def prepare_analysis(data):
-    status_counts = {"PASS": 0, "RE-APPEAR": 0}
-    score_buckets = ['90+', '80-89', '70-79', '60-69', '50-59', '40-49', '<40']
-    bucket_ranges = {
-        '90+': lambda x: x >= 90,
-        '80-89': lambda x: 80 <= x < 90,
-        '70-79': lambda x: 70 <= x < 80,
-        '60-69': lambda x: 60 <= x < 70,
-        '50-59': lambda x: 50 <= x < 60,
-        '40-49': lambda x: 40 <= x < 50,
-        '<40': lambda x: x < 40
-    }
-
-    subject_bucket_counts = defaultdict(lambda: defaultdict(int))
-    subject_scores = defaultdict(list)
-
-    for student in data:
-        status = student.get("Status", "RE-APPEAR").strip().upper()
-        status_counts[status] += 1
-
-        for subject in student.get("Subjects", []):
-            subject_name = subject["Subject"]
-            try:
-                score = int(subject["Total"])
-            except:
-                continue
-
-            subject_scores[subject_name].append(score)
-
-            for bucket, rule in bucket_ranges.items():
-                if rule(score):
-                    subject_bucket_counts[subject_name][bucket] += 1
-                    break
-
-    df_buckets = pd.DataFrame(subject_bucket_counts).fillna(0).astype(int).T[score_buckets]
-    df_avg = pd.DataFrame({subj: [sum(scores)/len(scores)] for subj, scores in subject_scores.items()},
-                          index=["Average"]).T.sort_values("Average", ascending=False)
+    # Handle both raw scraped data and uploaded DataFrame
+    if isinstance(data, pd.DataFrame):
+        # Process uploaded file data
+        status_counts = {"PASS": 0, "RE-APPEAR": 0}
+        subject_scores = defaultdict(list)
+        
+        # Convert DataFrame to the same format as scraped data
+        for _, row in data.iterrows():
+            status = row.get("Status", "RE-APPEAR").strip().upper()
+            status_counts[status] += 1
+            
+            # Process subjects - this part needs to match your actual DataFrame structure
+            # You may need to adjust this based on how your uploaded data is structured
+            subjects = eval(row.get("Subjects", "[]")) if isinstance(row.get("Subjects"), str) else row.get("Subjects", [])
+            for subject in subjects:
+                subject_name = subject.get("Subject", "")
+                try:
+                    score = int(subject.get("Total", 0))
+                    subject_scores[subject_name].append(score)
+                except:
+                    continue
+        
+        # Create score buckets
+        score_buckets = ['90+', '80-89', '70-79', '60-69', '50-59', '40-49', '<40']
+        bucket_ranges = {
+            '90+': lambda x: x >= 90,
+            '80-89': lambda x: 80 <= x < 90,
+            '70-79': lambda x: 70 <= x < 80,
+            '60-69': lambda x: 60 <= x < 70,
+            '50-59': lambda x: 50 <= x < 60,
+            '40-49': lambda x: 40 <= x < 50,
+            '<40': lambda x: x < 40
+        }
+        
+        subject_bucket_counts = defaultdict(lambda: defaultdict(int))
+        
+        for subject, scores in subject_scores.items():
+            for score in scores:
+                for bucket, rule in bucket_ranges.items():
+                    if rule(score):
+                        subject_bucket_counts[subject][bucket] += 1
+                        break
+        
+        # Ensure all buckets are present for each subject
+        for subject in subject_bucket_counts:
+            for bucket in score_buckets:
+                if bucket not in subject_bucket_counts[subject]:
+                    subject_bucket_counts[subject][bucket] = 0
+        
+        df_buckets = pd.DataFrame(subject_bucket_counts).fillna(0).astype(int).T
+        # Reorder columns to match score_buckets
+        df_buckets = df_buckets[score_buckets] if all(b in df_buckets.columns for b in score_buckets) else df_buckets
+        
+        df_avg = pd.DataFrame({subj: [sum(scores)/len(scores)] for subj, scores in subject_scores.items()},
+                              index=["Average"]).T.sort_values("Average", ascending=False)
+        
+        return status_counts, df_buckets, df_avg, subject_scores
     
-    return status_counts, df_buckets, df_avg, subject_scores
+    else:
+        # Process scraped data (original implementation)
+        status_counts = {"PASS": 0, "RE-APPEAR": 0}
+        score_buckets = ['90+', '80-89', '70-79', '60-69', '50-59', '40-49', '<40']
+        bucket_ranges = {
+            '90+': lambda x: x >= 90,
+            '80-89': lambda x: 80 <= x < 90,
+            '70-79': lambda x: 70 <= x < 80,
+            '60-69': lambda x: 60 <= x < 70,
+            '50-59': lambda x: 50 <= x < 60,
+            '40-49': lambda x: 40 <= x < 50,
+            '<40': lambda x: x < 40
+        }
 
+        subject_bucket_counts = defaultdict(lambda: defaultdict(int))
+        subject_scores = defaultdict(list)
+
+        for student in data:
+            status = student.get("Status", "RE-APPEAR").strip().upper()
+            status_counts[status] += 1
+
+            for subject in student.get("Subjects", []):
+                subject_name = subject["Subject"]
+                try:
+                    score = int(subject["Total"])
+                except:
+                    continue
+
+                subject_scores[subject_name].append(score)
+
+                for bucket, rule in bucket_ranges.items():
+                    if rule(score):
+                        subject_bucket_counts[subject_name][bucket] += 1
+                        break
+
+        # Ensure all buckets are present for each subject
+        for subject in subject_bucket_counts:
+            for bucket in score_buckets:
+                if bucket not in subject_bucket_counts[subject]:
+                    subject_bucket_counts[subject][bucket] = 0
+
+        df_buckets = pd.DataFrame(subject_bucket_counts).fillna(0).astype(int).T
+        # Reorder columns to match score_buckets
+        df_buckets = df_buckets[score_buckets] if all(b in df_buckets.columns for b in score_buckets) else df_buckets
+        
+        df_avg = pd.DataFrame({subj: [sum(scores)/len(scores)] for subj, scores in subject_scores.items()},
+                              index=["Average"]).T.sort_values("Average", ascending=False)
+        
+        return status_counts, df_buckets, df_avg, subject_scores
+
+# ========== Visualization Functions ==========
 def plot_subject_group(selected_group, subject_scores):
+    # Filter scores based on selected group
     group_scores = {subj: scores for subj, scores in subject_scores.items() if subj in selected_group}
     if not group_scores:
         return None
-    
-    df = pd.DataFrame(group_scores)
+
+    # Create DataFrame with NaN padding for unequal lengths
+    df = pd.DataFrame(dict(zip(group_scores.keys(), zip_longest(*group_scores.values()))))
+
+    # Calculate mean scores for each subject
+    mean_scores = df.mean().sort_values(ascending=False)
+
+    # Plot bar chart
     plt.figure(figsize=(10, 6))
-    
-    # Calculate means and sort
-    means = df.mean().sort_values(ascending=False)
-    df = df[means.index]
-    
-    # Create boxplot with enhanced styling
-    box = sns.boxplot(data=df, palette="Blues", showmeans=True,
-                     meanprops={"marker":"o", "markerfacecolor":"white", 
-                               "markeredgecolor":"red", "markersize":"8"})
-    
-    # Add median labels
-    for i, line in enumerate(box.get_lines()[4::6]):  # Every 6th line is a median line
-        x, y = line.get_xydata()[1]
-        box.text(x, y, f'{y:.1f}', ha='center', va='center', 
-                fontweight='bold', color='white', bbox=dict(facecolor='#0d47a1', alpha=0.7))
-    
-    plt.title(f"Performance in {', '.join(selected_group)}", pad=20)
-    plt.ylabel("Scores")
+    bars = plt.bar(mean_scores.index, mean_scores.values, color=sns.color_palette("Blues", len(mean_scores)))
+
+    # Add value labels on bars
+    for bar in bars:
+        height = bar.get_height()
+        plt.text(bar.get_x() + bar.get_width()/2, height + 0.5, f'{height:.1f}', ha='center', fontweight='bold')
+
+    plt.title(f"Average Scores in {', '.join(selected_group)}", pad=20)
+    plt.ylabel("Average Score")
     plt.xticks(rotation=45, ha="right")
     plt.tight_layout()
+
     return plt
 
+
 def plot_enhanced_bar(df, title):
-    plt.figure(figsize=(12, 6))
-    ax = df.plot(kind='bar', color=sns.color_palette("Blues", len(df)), edgecolor='black')
-    
-    # Add values on top of bars
-    for p in ax.patches:
-        ax.annotate(f"{int(p.get_height())}", 
-                   (p.get_x() + p.get_width() / 2., p.get_height()),
-                   ha='center', va='center', 
-                   xytext=(0, 5), 
-                   textcoords='offset points',
-                   fontsize=8)
-    
-    plt.title(title, pad=20)
-    plt.ylabel("Number of Students")
+    plt.figure(figsize=(14, 8))
+    blues = sns.color_palette("Blues", n_colors=len(df))[::-2]  # Reverse for darker → lighter
+    df.plot(kind='bar', stacked=True, color=blues, figsize=(14, 8))
+    plt.title("Subject-wise Distribution of Marks")
     plt.xlabel("Subjects")
+    plt.ylabel("Number of Students")
     plt.xticks(rotation=45, ha="right")
     plt.legend(title="Score Range", bbox_to_anchor=(1.05, 1), loc='upper left')
     plt.tight_layout()
     return plt
-
+#######
+# plt.savefig("subject_score_distribution.png")
+# plt.close()
+#########
 # ========== Streamlit Pages ==========
 def page1():
-    st.title("BISE Rawalpindi Result Scraper")
-    
+    st.title("B.I.S.E RAWALPINDI SSC Annual Examination 2025 Institution Result Dashboard")    
     if 'processed_data' not in st.session_state:
         st.session_state.processed_data = None
-    if 'scraping_started' not in st.session_state:
-        st.session_state.scraping_started = False
+    if 'scraped_results' not in st.session_state:
+        st.session_state.scraped_results = None
     
     input_method = st.radio(
         "Choose your input method:",
@@ -219,21 +304,15 @@ def page1():
         )
         
         if uploaded_file:
-            try:
-                if uploaded_file.type == "application/json":
-                    data = pd.read_json(uploaded_file)
-                else:
-                    data = pd.read_csv(uploaded_file)
+            processed_data = process_uploaded_file(uploaded_file)
+            if processed_data is not None:
+                st.session_state.processed_data = processed_data
+                st.success("File processed successfully!")
+                st.dataframe(processed_data.head())
                 
-                if 'roll_number' not in data.columns and 'Roll No' not in data.columns:
-                    st.error("File must contain a 'roll_number' or 'Roll No' column")
-                else:
-                    st.session_state.processed_data = data
-                    st.success("File processed successfully!")
-                    st.dataframe(data.head())
-                
-            except Exception as e:
-                st.error(f"Error processing file: {str(e)}")
+                if st.button("Proceed to Visualization"):
+                    st.session_state.page = "page2"
+                    st.rerun()
     
     else:
         roll_numbers = st.text_area(
@@ -270,103 +349,145 @@ def page1():
                 
             except Exception as e:
                 st.error(f"Error processing input: {str(e)}")
-    
-    with st.expander("Advanced Options"):
-        col1, col2 = st.columns(2)
-        with col1:
-            q_value = st.number_input("Q Parameter (default 2)", min_value=1, value=2)
-        with col2:
-            r_value = st.number_input("R Parameter (Year, default 2025)", min_value=2000, value=2025)
-    
-    if st.button("Start Scraping", disabled=not (
-        (input_method == "Upload File (CSV/JSON)" and 'processed_data' in st.session_state and st.session_state.processed_data is not None) or
-        (input_method == "Enter Roll Numbers Manually" and 'valid_rolls' in st.session_state)
-    )):
-        st.session_state.scraping_started = True
         
-        try:
-            if input_method == "Upload File (CSV/JSON)":
-                if 'roll_number' in st.session_state.processed_data.columns:
-                    roll_numbers = ",".join(map(str, st.session_state.processed_data['roll_number'].astype(int).tolist()))
-                else:
-                    roll_numbers = ",".join(map(str, st.session_state.processed_data['Roll No'].astype(int).tolist()))
-            else:
-                roll_numbers = st.session_state.valid_rolls
+        with st.expander("Advanced Options"):
+            col1, col2 = st.columns(2)
+            with col1:
+                q_value = st.number_input("Q Parameter (default 2)", min_value=1, value=2)
+            with col2:
+                r_value = st.number_input("R Parameter (Year, default 2025)", min_value=2000, value=2025)
+        
+        if st.button("Start Scraping", disabled=not ('valid_rolls' in st.session_state)):
+            st.session_state.scraping_started = True
             
-            scraped_data = scrape_data(roll_numbers, q=q_value, r=r_value)
-            
-            st.session_state.scraped_results = scraped_data
-            st.session_state.scraping_complete = True
-            
-            # Convert to DataFrame for better display
-            df_results = pd.json_normalize(
-                scraped_data,
-                meta=['Roll No', 'Student Name', 'Student Type', 'Grand Total', 'Status'],
-                record_path='Subjects',
-                errors='ignore'
-            )
-            
-            st.success("Scraping completed successfully!")
-            st.session_state.page = "page2"  # Move to visualization page
-            st.experimental_rerun()
-            
-        except Exception as e:
-            st.error(f"Error during scraping: {str(e)}")
-            st.session_state.scraping_complete = False
+            try:
+                scraped_data = scrape_data(st.session_state.valid_rolls, q=q_value, r=r_value)
+                st.session_state.scraped_results = scraped_data
+                st.session_state.scraping_complete = True
+                
+                # Convert to DataFrame for better display
+                df_results = pd.json_normalize(
+                    scraped_data,
+                    meta=['Roll No', 'Student Name', 'Student Type', 'Grand Total', 'Status'],
+                    record_path='Subjects',
+                    errors='ignore'
+                )
+                
+                st.success("Scraping completed successfully!")
+                
+                # Add download buttons
+                st.subheader("Download Scraped Data")
+                col1, col2 = st.columns(2)
+                
+                with col1:
+                    # CSV Download
+                    csv = df_results.to_csv(index=False)
+                    st.download_button(
+                        label="Download as CSV",
+                        data=csv,
+                        file_name='bise_results.csv',
+                        mime='text/csv',
+                    )
+                
+                with col2:
+                    # JSON Download
+                    json_data = json.dumps(scraped_data, indent=2)
+                    st.download_button(
+                        label="Download as JSON",
+                        data=json_data,
+                        file_name='bise_results.json',
+                        mime='application/json',
+                    )
+                
+                if st.button("Proceed to Visualization"):
+                    st.session_state.page = "page2"
+                    st.rerun()
+                
+            except Exception as e:
+                st.error(f"Error during scraping: {str(e)}")
+                st.session_state.scraping_complete = False
 
 def page2():
     st.title("Result Analysis Dashboard")
     
-    if 'scraped_results' not in st.session_state:
-        st.warning("No data available. Please go back to Page 1 and scrape data first.")
-        if st.button("Go to Scraping Page"):
+    if 'processed_data' not in st.session_state and 'scraped_results' not in st.session_state:
+        st.warning("No data available. Please go back to Page 1 and upload or scrape data first.")
+        if st.button("Go to Data Input Page"):
             st.session_state.page = "page1"
-            st.experimental_rerun()
+            st.rerun()
         return
     
     # Prepare data
-    status_counts, df_buckets, df_avg, subject_scores = prepare_analysis(st.session_state.scraped_results)
+    data_source = st.session_state.processed_data if 'processed_data' in st.session_state else st.session_state.scraped_results
+    status_counts, df_buckets, df_avg, subject_scores = prepare_analysis(data_source)
     
     # Overall metrics
     st.header("Overall Performance")
-    col1, col2, col3 = st.columns(3)
+    col1, col2, col3, col4 = st.columns(4)
     col1.metric("Total Students", sum(status_counts.values()))
     col2.metric("Passed Students", status_counts["PASS"])
     col3.metric("Pass Percentage", f"{100 * status_counts['PASS']/sum(status_counts.values()):.1f}%")
+    col4.metric("Reappear Percentage", f"{100 - (100 * status_counts['PASS']/sum(status_counts.values())):.1f}%")
     
     # Tab layout
-    tab1, tab2, tab3 = st.tabs(["Score Distribution", "Subject Groups Analysis", "Advanced Visualizations"])
+    tab1, tab2, tab3, tab4 = st.tabs(["Score Distribution", "Subject Groups Analysis", "Advanced Visualizations", "Teacher-wise Report"])
     
     with tab1:
-        st.subheader("Score Distribution by Subject")
-        fig = plot_enhanced_bar(df_buckets, "Subject-wise Score Distribution")
+        st.subheader("Pass vs Reappear")
+        fig, ax = plt.subplots(figsize=(4, 4))
+        ax.pie(status_counts.values(), labels=status_counts.keys(), autopct='%1.1f%%',
+            colors=['#0d47a1', '#90caf9'], startangle=140)
+        ax.set_title("Overall Result: Pass vs Reappear")
         st.pyplot(fig)
+
+        st.subheader("Score Distribution by Subject")
+        if not df_buckets.empty:
+            fig = plot_enhanced_bar(df_buckets, "Subject-wise Score Distribution")
+            st.pyplot(fig)
+        else:
+            st.warning("No score distribution data available")
         
         st.subheader("Average Scores by Subject")
-        fig, ax = plt.subplots(figsize=(10, 6))
-        sns.barplot(x=df_avg.index, y=df_avg["Average"], palette="Blues")
-        
-        # Add value labels
-        for i, v in enumerate(df_avg["Average"]):
-            ax.text(i, v + 0.5, f"{v:.1f}", ha='center', va='bottom', fontweight='bold')
-        
-        plt.xticks(rotation=45, ha="right")
-        plt.title("Average Scores by Subject")
-        plt.ylabel("Average Score")
-        plt.tight_layout()
-        st.pyplot(fig)
+        if not df_avg.empty:
+            fig, ax = plt.subplots(figsize=(14, 8))
+            
+            # Sort scores to get darker colors for higher values
+            scores = df_avg["Average"]
+            ranks = scores.rank(ascending=False).astype(int)  # 1 = highest score
+            n_colors = len(scores)
+            
+            # Generate a reversed Blues palette (darker → lighter)
+            palette = sns.color_palette("Blues", n_colors=n_colors)[::-1]
+            
+            # Map ranks to colors
+            colors = [palette[rank - 1] for rank in ranks]
+
+            sns.barplot(x=df_avg.index, y=scores, palette=colors)
+
+            # Add value labels
+            for i, v in enumerate(scores):
+                ax.text(i, v + 0.5, f"{v:.1f}", ha='center', va='bottom', fontweight='bold')
+
+            plt.xticks(rotation=45, ha="right", fontsize = 8)
+            plt.title("Average Scores by Subject")
+            plt.ylabel("Average Score")
+            plt.tight_layout()
+            st.pyplot(fig)
+
+        else:
+            st.warning("No average score data available")
     
     with tab2:
         st.subheader("Subject Group Analysis")
         
         # Define subject groups
         subject_groups = {
-            "Math, Physics, Chemistry, Biology": ["MATHEMATICS", "PHYSICS", "CHEMISTRY", "BIOLOGY"],
-            "Math, Physics, Chemistry, CS": ["MATHEMATICS", "PHYSICS", "CHEMISTRY", "COMPUTER SCIENCE"],
-            "Math, General Science, Islamiat, Elective": ["MATHEMATICS", "GENERAL SCIENCE", "ISLAMIAT", "ELECTIVE"],
-            "Math, General Science, Physical Education": ["MATHEMATICS", "GENERAL SCIENCE", "PHYSICAL EDUCATION"],
-            "Math, General Science, Food and Nutrition": ["MATHEMATICS", "GENERAL SCIENCE", "FOOD AND NUTRITION"],
-            "Math, General Science, Clothing and Textile": ["MATHEMATICS", "GENERAL SCIENCE", "CLOTHING AND TEXTILE"]
+            "Math (C), Physics, Chemistry, Biology": ["MATHEMATICS (COMPULSORY)", "PHYSICS", "CHEMISTRY", "BIOLOGY"],
+            "Math (C), Physics, Chemistry, CS": ["MATHEMATICS (COMPULSORY)", "PHYSICS", "CHEMISTRY", "COMPUTER SCIENCE"],
+            "General Math, General Science, Islamiyat Elective": ["GENERAL MATHEMATICS (ARTS)", "GENERAL SCIENCE", "ISLAMIYAT (ELECTIVE)"],
+            "General Math, General Science, Health and Physical Education": ["GENERAL MATHEMATICS (ARTS)", "GENERAL SCIENCE", "HEALTH AND PHYSICAL EDUCATION"],
+            "General Math, General Science, Food and Nutrition": ["GENERAL MATHEMATICS (ARTS)", "GENERAL SCIENCE", "FOOD AND NUTRITION"],
+            "General Math, General Science, Clothing and Textile": ["GENERAL MATHEMATICS (ARTS)", "GENERAL SCIENCE", "CLOTHING AND TEXTILE"]
         }
         
         selected_group = st.selectbox("Select Subject Group", list(subject_groups.keys()))
@@ -379,27 +500,118 @@ def page2():
     
     with tab3:
         st.subheader("Heatmap of Performance")
-        fig, ax = plt.subplots(figsize=(12, 8))
-        sns.heatmap(df_buckets, annot=True, fmt="d", cmap="Blues", ax=ax)
-        plt.title("Score Range Heatmap by Subject")
-        st.pyplot(fig)
-        
-        st.subheader("Pass vs Reappear")
-        fig, ax = plt.subplots(figsize=(6, 6))
-        ax.pie(status_counts.values(), labels=status_counts.keys(), autopct='%1.1f%%',
-               colors=['#0d47a1', '#90caf9'], startangle=140)
-        ax.set_title("Overall Result: Pass vs Reappear")
-        st.pyplot(fig)
+        if not df_buckets.empty:
+            fig, ax = plt.subplots(figsize=(12, 8))
+            sns.heatmap(df_buckets, annot=True, fmt="d", cmap="Blues", ax=ax)
+            plt.title("Score Range Heatmap by Subject")
+            st.pyplot(fig)
+        else:
+            st.warning("No data available for heatmap")
+
+    # Tab 4 - Teacher Wise Report
+    with tab4:
+        st.subheader("Compile Result by Teacher")
+        teacher_name = st.text_input("Enter Teacher Name")
+
+        roll_map = {}
+        if isinstance(data_source, pd.DataFrame):
+            for _, row in data_source.iterrows():
+                roll_map[row['Roll No']] = row
+        else:
+            for student in data_source:
+                roll_map[student['Roll No']] = student
+
+        selected_rolls = st.multiselect("Select Roll Numbers", list(roll_map.keys()))
+
+        if selected_rolls:
+            teacher_results = [roll_map[r] for r in selected_rolls if r in roll_map]
+            if isinstance(teacher_results[0], pd.Series):
+                teacher_results = [r.to_dict() for r in teacher_results]
+
+            pass_count = sum(1 for s in teacher_results if s.get("Status", "RE-APPEAR") == "PASS")
+            total = len(teacher_results)
+
+            fig, ax = plt.subplots(figsize=(4, 4))
+            ax.pie([pass_count, total - pass_count], labels=["Pass", "Reappear"], autopct='%1.1f%%',
+                   colors=['#2e7d32', '#ef5350'], startangle=90)
+            ax.set_title(f"{teacher_name} Result Summary")
+            st.pyplot(fig)
+
+    # Generate Full Report
+    st.markdown("---")
+    st.subheader("📄 Generate Full Result Report")
+
+    if st.button("Generate Full Markdown & PDF Report"):
+        # --- Build Markdown Report ---
+        md_report = "# BISE Result Dashboard Report\n\n"
+        md_report += "## 1. Overall Performance\n"
+        total_students = sum(status_counts.values())
+        passed = status_counts["PASS"]
+        pass_pct = 100 * passed / total_students
+        md_report += f"- **Total Students**: {total_students}\n"
+        md_report += f"- **Passed**: {passed}\n"
+        md_report += f"- **Reappeared**: {total_students - passed}\n"
+        md_report += f"- **Pass Percentage**: {pass_pct:.2f}%\n"
+        md_report += f"- **Reappear Percentage**: {100 - pass_pct:.2f}%\n\n"
+
+        md_report += "## 2. Average Scores by Subject\n"
+        for index, row in df_avg.iterrows():
+            md_report += f"- **{index}**: {row['Average']:.1f}\n"
+
+        md_report += "\n## 3. Score Distribution Buckets\n"
+        md_report += df_buckets.to_markdown()
+
+        md_report += "\n\n## 4. Subject Group Definitions\n"
+        for group, subs in subject_groups.items():
+            md_report += f"- **{group}**: {', '.join(subs)}\n"
+
+        md_report += "\n\n## 5. Teacher-wise Summary (Selected Only)\n"
+        if selected_rolls:
+            md_report += f"### {teacher_name}'s Selected Students:\n"
+            md_report += f"- Total Students: {total}\n"
+            md_report += f"- Pass Percentage: {(100 * pass_count / total):.2f}%\n"
+            for student in teacher_results:
+                md_report += f"  - {student['Roll No']}: {student['Student Name']} - *{student['Status']}*\n"
+        else:
+            md_report += "No specific teacher selected for summary.\n"
+
+        # --- Save Markdown Report (.md) ---
+        md_temp = tempfile.NamedTemporaryFile(delete=False, suffix=".md", mode='w', encoding='utf-8')
+        md_temp.write(md_report)
+        md_temp.close()
+
+        with open(md_temp.name, "rb") as md_file:
+            st.download_button("📥 Download Markdown Report", md_file, file_name="full_result_report.md")
+
+        # --- Convert Markdown to PDF via FPDF ---
+        pdf = FPDF()
+        pdf.add_page()
+        pdf.set_auto_page_break(auto=True, margin=15)
+        pdf.set_font("Arial", size=12)
+
+        for line in md_report.split("\n"):
+            pdf.multi_cell(0, 10, txt=line)
+
+        pdf_temp = tempfile.NamedTemporaryFile(delete=False, suffix=".pdf")
+        pdf.output(pdf_temp.name)
+
+        with open(pdf_temp.name, "rb") as pdf_file:
+            st.download_button("📥 Download PDF Report", pdf_file, file_name="full_result_report.pdf")
+
+
     
-    if st.button("Back to Scraping Page"):
+    if st.button("Back to Data Input Page"):
         st.session_state.page = "page1"
-        st.experimental_rerun()
+        st.rerun()
 
 # ========== Main App ==========
+# Modify main()
 def main():
+    set_background_gradient()
+
     if 'page' not in st.session_state:
         st.session_state.page = "page1"
-    
+
     if st.session_state.page == "page1":
         page1()
     elif st.session_state.page == "page2":
