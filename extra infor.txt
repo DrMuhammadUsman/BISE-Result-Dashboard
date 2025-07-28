@@ -1,0 +1,5 @@
+
+BOARD OF INTERMEDIATE AND SECONDARY EDUCATION RAWALPINDI RESULT INTIMATION SSC Annual Examination 2025
+
+
+    st.title("B.I.S.E RAWALPINDI SSC Annual Examination 2025 Institution Result Dashboard")

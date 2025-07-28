@@ -1,0 +1,192 @@
+[
+  {
+    "Roll No": "103683",
+    "Student Name": "EMAN MEHFOOZ",
+    "Student Type": "REGULAR",
+    "Grand Total": "962",
+    "Status": "PASS",
+    "Subjects": [
+      {
+        "Subject": "ENGLISH (COMPULSORY)",
+        "Theory-I": "49",
+        "Theory-II": "65",
+        "Practical": "",
+        "Total": "114",
+        "Percentile Marks": "76.00",
+        "Relative Grade": "C+",
+        "Remarks": "Pass"
+      },
+      {
+        "Subject": "URDU (COMPULSORY)",
+        "Theory-I": "63",
+        "Theory-II": "56",
+        "Practical": "",
+        "Total": "119",
+        "Percentile Marks": "80.95",
+        "Relative Grade": "B",
+        "Remarks": "Pass"
+      },
+      {
+        "Subject": "TARJAMA TUL QURAN UL MAJEED",
+        "Theory-I": "48",
+        "Theory-II": "48",
+        "Practical": "",
+        "Total": "96",
+        "Percentile Marks": "96.00",
+        "Relative Grade": "A+",
+        "Remarks": "Pass"
+      },
+      {
+        "Subject": "ISLAMIYAT (COMPULSORY)",
+        "Theory-I": "43",
+        "Theory-II": "44",
+        "Practical": "",
+        "Total": "87",
+        "Percentile Marks": "87.00",
+        "Relative Grade": "A",
+        "Remarks": "Pass"
+      },
+      {
+        "Subject": "PAKISTAN STUDIES(COMPULSORY)",
+        "Theory-I": "45",
+        "Theory-II": "39",
+        "Practical": "",
+        "Total": "84",
+        "Percentile Marks": "84.00",
+        "Relative Grade": "B+",
+        "Remarks": "Pass"
+      },
+      {
+        "Subject": "MATHEMATICS (COMPULSORY)",
+        "Theory-I": "63",
+        "Theory-II": "70",
+        "Practical": "",
+        "Total": "133",
+        "Percentile Marks": "88.67",
+        "Relative Grade": "A",
+        "Remarks": "Pass"
+      },
+      {
+        "Subject": "BIOLOGY",
+        "Theory-I": "26",
+        "Theory-II": "54",
+        "Practical": "25",
+        "Total": "105",
+        "Percentile Marks": "70.00",
+        "Relative Grade": "C+",
+        "Remarks": "Pass"
+      },
+      {
+        "Subject": "PHYSICS",
+        "Theory-I": "41",
+        "Theory-II": "42",
+        "Practical": "24",
+        "Total": "107",
+        "Percentile Marks": "71.33",
+        "Relative Grade": "C+",
+        "Remarks": "Pass"
+      },
+      {
+        "Subject": "CHEMISTRY",
+        "Theory-I": "43",
+        "Theory-II": "52",
+        "Practical": "22",
+        "Total": "117",
+        "Percentile Marks": "78.00",
+        "Relative Grade": "B",
+        "Remarks": "Pass"
+      }
+    ]
+  },
+  {
+    "Roll No": "124861",
+    "Student Name": "AMNA BIBI",
+    "Student Type": "REGULAR",
+    "Grand Total": "",
+    "Status": "RE-APPEAR",
+    "Subjects": [
+      {
+        "Subject": "ENGLISH (COMPULSORY)",
+        "Theory-I": "14",
+        "Theory-II": "8",
+        "Practical": "",
+        "Total": "22",
+        "Remarks": "Fail in P-I P-II"
+      },
+      {
+        "Subject": "URDU (COMPULSORY)",
+        "Theory-I": "10",
+        "Theory-II": "9",
+        "Practical": "",
+        "Total": "19",
+        "Remarks": "Fail in P-I P-II"
+      },
+      {
+        "Subject": "TARJAMA TUL QURAN UL MAJEED",
+        "Theory-I": "30",
+        "Theory-II": "13",
+        "Practical": "",
+        "Total": "43",
+        "Percentile Marks": "43.00",
+        "Relative Grade": "D",
+        "Remarks": "Pass"
+      },
+      {
+        "Subject": "ISLAMIYAT (COMPULSORY)",
+        "Theory-I": "23",
+        "Theory-II": "13",
+        "Practical": "",
+        "Total": "36",
+        "Percentile Marks": "36.00",
+        "Relative Grade": "E",
+        "Remarks": "Pass"
+      },
+      {
+        "Subject": "PAKISTAN STUDIES(COMPULSORY)",
+        "Theory-I": "19",
+        "Theory-II": "7",
+        "Practical": "",
+        "Total": "26",
+        "Remarks": "Fail in P-II"
+      },
+      {
+        "Subject": "GENERAL SCIENCE",
+        "Theory-I": "32",
+        "Theory-II": "18",
+        "Practical": "",
+        "Total": "50",
+        "Percentile Marks": "33.78",
+        "Relative Grade": "E",
+        "Remarks": "Pass"
+      },
+      {
+        "Subject": "GENERAL MATHEMATICS (ARTS)",
+        "Theory-I": "6",
+        "Theory-II": "13",
+        "Practical": "",
+        "Total": "19",
+        "Remarks": "Fail in P-I P-II"
+      },
+      {
+        "Subject": "HEALTH AND PHYSICAL EDUCATION",
+        "Theory-I": "21",
+        "Theory-II": "33",
+        "Practical": "18",
+        "Total": "72",
+        "Percentile Marks": "48.98",
+        "Relative Grade": "D",
+        "Remarks": "Pass"
+      },
+      {
+        "Subject": "CLOTHING AND TEXTILE",
+        "Theory-I": "24",
+        "Theory-II": "20",
+        "Practical": "24",
+        "Total": "68",
+        "Percentile Marks": "49.64",
+        "Relative Grade": "D",
+        "Remarks": "Pass"
+      }
+    ]
+  }
+]
