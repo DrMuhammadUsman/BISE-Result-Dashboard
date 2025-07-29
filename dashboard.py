@@ -12,6 +12,18 @@ from itertools import zip_longest
 from fpdf import FPDF
 import streamlit.components.v1 as components
 
+headers = {
+    "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/115.0.0.0 Safari/537.36",
+    "Accept": "text/html,application/xhtml+xml,application/xml;q=0.9,*/*;q=0.8",
+    "Accept-Language": "en-US,en;q=0.5",
+    "Referer": "https://results.biserawalpindi.edu.pk/",
+    "Connection": "keep-alive",
+}
+
+url = f"https://results.biserawalpindi.edu.pk/Result_Detail?p={roll_no}&q=2&r=2025"
+
+response = requests.get(url, headers=headers)
+response.raise_for_status()  # raises 403 if blocked
 
 # CSS for print page breaks
 PRINT_CSS = """
