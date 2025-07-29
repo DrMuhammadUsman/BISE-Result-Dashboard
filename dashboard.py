@@ -38,14 +38,24 @@ def render_print_button():
 def fetch_html(p, q, r):
     url = "https://results.biserawalpindi.edu.pk/Result_Detail"
     params = {"p": p, "q": q, "r": r}
-    
+    ###
     headers = {
-    "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/115.0.0.0 Safari/537.36",
-    "Accept": "text/html,application/xhtml+xml,application/xml;q=0.9,*/*;q=0.8",
-    "Accept-Language": "en-US,en;q=0.5",
+    "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 \
+                  (KHTML, like Gecko) Chrome/114.0.0.0 Safari/537.36",
     "Referer": "https://results.biserawalpindi.edu.pk/",
-    "Connection": "keep-alive",
+    "Accept": "text/html,application/xhtml+xml,application/xml;q=0.9,image/webp,*/*;q=0.8"
 }
+
+    response = requests.get(url, headers=headers)
+
+    ###
+#     headers = {
+#     "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/115.0.0.0 Safari/537.36",
+#     "Accept": "text/html,application/xhtml+xml,application/xml;q=0.9,*/*;q=0.8",
+#     "Accept-Language": "en-US,en;q=0.5",
+#     "Referer": "https://results.biserawalpindi.edu.pk/",
+#     "Connection": "keep-alive",
+# }
 
     url = f"https://results.biserawalpindi.edu.pk/Result_Detail?p={p}&q=2&r=2025"
 
