@@ -31,7 +31,7 @@ def render_print_button():
                 style="padding:8px 16px;font-size:16px;
                        background:#4CAF50;color:white;border:none;
                        border-radius:4px;cursor:pointer;">
-          🖨️ Print Report
+           Print Report
         </button>
         """, height=60)
     
@@ -164,17 +164,20 @@ def prepare_analysis(data):
                 except:
                     continue
         
-        # Create score buckets
-        score_buckets = ['90+', '80-89', '70-79', '60-69', '50-59', '40-49', '<40']
-        bucket_ranges = {
-            '90+': lambda x: x >= 90,
-            '80-89': lambda x: 80 <= x < 90,
-            '70-79': lambda x: 70 <= x < 80,
-            '60-69': lambda x: 60 <= x < 70,
-            '50-59': lambda x: 50 <= x < 60,
-            '40-49': lambda x: 40 <= x < 50,
-            '<40': lambda x: x < 40
-        }
+                # Create score buckets
+                score_buckets = ['95+', '90-94', '85-89', '80-84', '75-79', '70-74', '60-69', '50-59', '40-49', '<40']
+                bucket_ranges = {
+                    '95+': lambda x: x >= 95,
+                    '90-94': lambda x: 90 <= x < 95,
+                    '85-89': lambda x: 85 <= x < 90,
+                    '80-84': lambda x: 80 <= x < 85,
+                    '75-79': lambda x: 75 <= x < 80,
+                    '70-74': lambda x: 70 <= x < 75,
+                    '60-69': lambda x: 60 <= x < 70,
+                    '50-59': lambda x: 50 <= x < 60,
+                    '40-49': lambda x: 40 <= x < 50,
+                    '<40': lambda x: x < 40
+                }
         
         subject_bucket_counts = defaultdict(lambda: defaultdict(int))
         
@@ -203,11 +206,15 @@ def prepare_analysis(data):
     else:
         # Process scraped data (original implementation)
         status_counts = {"PASS": 0, "RE-APPEAR": 0}
-        score_buckets = ['90+', '80-89', '70-79', '60-69', '50-59', '40-49', '<40']
+        # Create score buckets
+        score_buckets = ['95+', '90-94', '85-89', '80-84', '75-79', '70-74', '60-69', '50-59', '40-49', '<40']
         bucket_ranges = {
-            '90+': lambda x: x >= 90,
-            '80-89': lambda x: 80 <= x < 90,
-            '70-79': lambda x: 70 <= x < 80,
+            '95+': lambda x: x >= 95,
+            '90-94': lambda x: 90 <= x < 95,
+            '85-89': lambda x: 85 <= x < 90,
+            '80-84': lambda x: 80 <= x < 85,
+            '75-79': lambda x: 75 <= x < 80,
+            '70-74': lambda x: 70 <= x < 75,
             '60-69': lambda x: 60 <= x < 70,
             '50-59': lambda x: 50 <= x < 60,
             '40-49': lambda x: 40 <= x < 50,
@@ -251,44 +258,107 @@ def prepare_analysis(data):
         return status_counts, df_buckets, df_avg, subject_scores
 
 # ========== Visualization Functions ==========
-def plot_subject_group(selected_group, subject_scores):
-    # Filter scores based on selected group
-    group_scores = {subj: scores for subj, scores in subject_scores.items() if subj in selected_group}
-    if not group_scores:
-        return None
+# def plot_subject_group(selected_group, subject_scores):
+#     # Filter scores based on selected group
+#     group_scores = {subj: scores for subj, scores in subject_scores.items() if subj in selected_group}
+#     if not group_scores:
+#         return None
 
-    # Create DataFrame with NaN padding for unequal lengths
-    df = pd.DataFrame(dict(zip(group_scores.keys(), zip_longest(*group_scores.values()))))
+#     # Create DataFrame with NaN padding for unequal lengths
+#     df = pd.DataFrame(dict(zip(group_scores.keys(), zip_longest(*group_scores.values()))))
 
-    # Calculate mean scores for each subject
-    mean_scores = df.mean().sort_values(ascending=False)
+#     # Calculate mean scores for each subject
+#     mean_scores = df.mean().sort_values(ascending=False)
 
-    # Plot bar chart
-    plt.figure(figsize=(10, 6))
-    bars = plt.bar(mean_scores.index, mean_scores.values, color=sns.color_palette("Blues", len(mean_scores)))
+#     # Plot bar chart
+#     plt.figure(figsize=(10, 6))
+#     bars = plt.bar(mean_scores.index, mean_scores.values, color=sns.color_palette("Blues", len(mean_scores)))
 
-    # Add value labels on bars
-    for bar in bars:
-        height = bar.get_height()
-        plt.text(bar.get_x() + bar.get_width()/2, height + 0.5, f'{height:.1f}', ha='center', fontweight='bold')
+#     # Add value labels on bars
+#     for bar in bars:
+#         height = bar.get_height()
+#         plt.text(bar.get_x() + bar.get_width()/2, height + 0.5, f'{height:.1f}', ha='center', fontweight='bold')
 
-    plt.title(f"Average Scores in {', '.join(selected_group)}", pad=20)
-    plt.ylabel("Average Score")
-    plt.xticks(rotation=45, ha="right")
-    plt.tight_layout()
+#     plt.title(f"Average Scores in {', '.join(selected_group)}", pad=20)
+#     plt.ylabel("Average Score")
+#     plt.xticks(rotation=45, ha="right")
+#     plt.tight_layout()
 
-    return plt
+#     return plt
+
+# def show_top_scorers_table(groups, subject_scores, full_data):
+#     for group in groups:
+#         group_name = group["name"]
+#         selected_subjects = group["subjects"]
+
+#         group_scores = {subj: scores for subj, scores in subject_scores.items() if subj in selected_subjects}
+#         if not group_scores:
+#             st.warning(f"No data for group '{group_name}'")
+#             continue
+
+#         df = pd.DataFrame(dict(zip(group_scores.keys(), zip_longest(*group_scores.values()))))
+#         df["Total"] = df.sum(axis=1)
+
+#         full_df = df.copy()
+#         full_df["Roll No"] = full_data["Roll No"].values[:len(df)]
+#         full_df["Student Name"] = full_data["Student Name"].values[:len(df)]
+#         full_df["Grand Total"] = full_data["Grand Total"].values[:len(df)]
+
+#         available_subjects = [s for s in selected_subjects if s in full_df.columns]
+
+#         columns_to_show = ["Roll No", "Student Name", "Grand Total"] + available_subjects
+#         top5 = full_df.sort_values("Total", ascending=False).head(5)[columns_to_show]
+
+#         st.markdown(f"**Top 5 Scorers in Group: {group_name}**")
+#         st.dataframe(top5.reset_index(drop=True), use_container_width=True)
 
 
 def plot_enhanced_bar(df, title):
     plt.figure(figsize=(14, 8))
-    blues = sns.color_palette("Blues", n_colors=len(df))[::-2]  # Reverse for darker → lighter
-    df.plot(kind='bar', stacked=True, color=blues, figsize=(14, 8))
-    plt.title("Subject-wise Distribution of Marks")
-    plt.xlabel("Subjects")
-    plt.ylabel("Number of Students")
-    plt.xticks(rotation=45, ha="right")
-    plt.legend(title="Score Range", bbox_to_anchor=(1.05, 1), loc='upper left')
+    colors = sns.color_palette("Blues", n_colors=len(df))[::-1]
+    
+    ax = df.plot(kind='bar', 
+                 width=0.95, 
+                 color=colors,
+                #  edgecolor='black',
+                #  linewidth=0.5,
+                 figsize=(14, 8))
+    
+    # Add value labels on each bar
+    for container in ax.containers:
+        ax.bar_label(container, 
+                    label_type='edge', 
+                    padding=6,
+                    fontsize=5,
+                    rotation = 90,
+                    fmt='%d')
+    
+    plt.title(title, 
+              fontsize=16, 
+              pad=20, 
+              fontweight='bold')
+    plt.xlabel("Subjects", 
+               fontsize=12, 
+               labelpad=10)
+    plt.ylabel("Number of Students", 
+               fontsize=12, 
+               labelpad=10)
+    
+    plt.xticks(rotation=45, 
+               ha="right",
+               fontsize=10)
+    plt.yticks(fontsize=10)
+    
+    plt.grid(axis='y', 
+             linestyle='--', 
+             alpha=0.7)
+    
+    plt.legend(title="Score Range", 
+               bbox_to_anchor=(1.02, 1), 
+               loc='upper left',
+               frameon=True,
+               fontsize=10)
+    
     plt.tight_layout()
     return plt
 #######
@@ -296,8 +366,18 @@ def plot_enhanced_bar(df, title):
 # plt.close()
 #########
 # ========== Streamlit Pages ==========
+# In your main app file (before any page definitions)
+if 'school_name' not in st.session_state:
+    st.session_state.school_name = ""
+
 def page1():
-    st.title("B.I.S.E RAWALPINDI SSC Annual Examination 2025 Institution Result Analysis Dashboard")    
+    # School name input (only show on first page if not set)
+    if not st.session_state.school_name:
+        st.session_state.school_name = st.text_input("Enter School Name", 
+                                                   value="",
+                                                   max_chars=100)
+    
+    st.title(f"B.I.S.E RAWALPINDI SSC Annual Examination 2025 | {st.session_state.school_name} Result Analysis Dashboard")
     if 'processed_data' not in st.session_state:
         st.session_state.processed_data = None
     if 'scraped_results' not in st.session_state:
@@ -305,14 +385,14 @@ def page1():
     
     input_method = st.radio(
         "Choose your input method:",
-        ("Upload File (CSV/JSON)", "Enter Roll Numbers Manually"),
+        ("Upload JSON File", "Enter Roll Numbers Manually"),
         horizontal=True
     )
     
-    if input_method == "Upload File (CSV/JSON)":
+    if input_method == "Upload JSON File":
         uploaded_file = st.file_uploader(
-            "Upload your file (CSV or JSON)",
-            type=["json", "csv"],
+            "Upload your JSON file ",
+            type=["json"],
             accept_multiple_files=False,
             key="file_uploader"
         )
@@ -395,13 +475,7 @@ def page1():
                 
                 with col1:
                     # CSV Download
-                    csv = df_results.to_csv(index=False)
-                    st.download_button(
-                        label="Download as CSV",
-                        data=csv,
-                        file_name='bise_results.csv',
-                        mime='text/csv',
-                    )
+                    pass
                 
                 with col2:
                     # JSON Download
@@ -413,16 +487,17 @@ def page1():
                         mime='application/json',
                     )
                 
-                # if st.button("Proceed to Visualization"):
-                #     st.session_state.page = "page2"
-                #     st.rerun()
+            # if st.button("Proceed to Visualization"):
+            #     st.session_state.page = "page2"
+            #     st.rerun()
                 
             except Exception as e:
                 st.error(f"Error during scraping: {str(e)}")
                 st.session_state.scraping_complete = False
 
 def page2():
-    st.title("B.I.S.E RAWALPINDI SSC Annual Examination 2025 Institution Result Analysis Dashboard")
+    st.title(f"B.I.S.E RAWALPINDI SSC Annual Examination 2025 | {st.session_state.school_name} Result Analysis Dashboard")
+    # st.title("B.I.S.E RAWALPINDI SSC Annual Examination 2025 Institution Result Analysis Dashboard")
     
     if 'processed_data' not in st.session_state and 'scraped_results' not in st.session_state:
         st.warning("No data available. Please go back to Page 1 and upload or scrape data first.")
@@ -448,11 +523,37 @@ def page2():
     
     with tab1:
         st.subheader("Pass vs Reappear")
-        fig, ax = plt.subplots(figsize=(2, 2))
-        ax.pie(status_counts.values(), labels=status_counts.keys(), autopct='%1.1f%%',
-            colors=['#0d47a1', '#90caf9'], startangle=140)
-        ax.set_title("Overall Result: Pass vs Reappear")
+        fig, ax = plt.subplots(figsize=(6, 6))
+        wedges, texts, autotexts = ax.pie(
+            status_counts.values(), 
+            labels=status_counts.keys(), 
+            autopct='%1.1f%%',
+            colors=['#0d47a1', '#90caf9'],
+            startangle=90,
+            explode=(0.05, 0),  # slight separation
+            shadow=False,
+            textprops={'fontsize': 12, 'color': 'white', 'weight': 'bold'}
+        )
+
+        # Improve legend
+        ax.legend(
+            wedges, 
+            status_counts.keys(),
+            title="Status",
+            loc="center left",
+            bbox_to_anchor=(1, 0, 0.5, 1)
+        )
+
+        # Make percentage labels more visible
+        plt.setp(autotexts, size=12, weight="bold", color='white')
+
+        # Equal aspect ratio ensures pie is drawn as circle
+        ax.axis('equal')  
+        ax.set_title("Overall Result: Pass vs Reappear", pad=20, fontweight='bold')
+
+        plt.tight_layout()
         st.pyplot(fig)
+
 
         st.subheader("Score Distribution by Subject")
         if not df_buckets.empty:
@@ -490,27 +591,57 @@ def page2():
 
         else:
             st.warning("No average score data available")
-    
-    with tab2:
-        st.subheader("Subject Group Analysis")
-        
-        # Define subject groups
-        subject_groups = {
-            "Math (C), Physics, Chemistry, Biology": ["MATHEMATICS (COMPULSORY)", "PHYSICS", "CHEMISTRY", "BIOLOGY"],
-            "Math (C), Physics, Chemistry, CS": ["MATHEMATICS (COMPULSORY)", "PHYSICS", "CHEMISTRY", "COMPUTER SCIENCE"],
-            "General Math, General Science, Islamiyat Elective": ["GENERAL MATHEMATICS (ARTS)", "GENERAL SCIENCE", "ISLAMIYAT (ELECTIVE)"],
-            "General Math, General Science, Health and Physical Education": ["GENERAL MATHEMATICS (ARTS)", "GENERAL SCIENCE", "HEALTH AND PHYSICAL EDUCATION"],
-            "General Math, General Science, Food and Nutrition": ["GENERAL MATHEMATICS (ARTS)", "GENERAL SCIENCE", "FOOD AND NUTRITION"],
-            "General Math, General Science, Clothing and Textile": ["GENERAL MATHEMATICS (ARTS)", "GENERAL SCIENCE", "CLOTHING AND TEXTILE"]
-        }
-        
-        selected_group = st.selectbox("Select Subject Group", list(subject_groups.keys()))
-        
-        fig = plot_subject_group(subject_groups[selected_group], subject_scores)
-        if fig:
-            st.pyplot(fig)
+    # Prepare full_data for top scorers (must include Roll No and Student Name)
+        if st.session_state.processed_data is not None:
+            df_raw_data = st.session_state.processed_data.copy()
+        elif st.session_state.scraped_results is not None:
+            df_raw_data = pd.DataFrame([
+                {
+                    "Roll No": record["Roll No"],
+                    "Student Name": record["Student Name"],
+                    **{s["Subject"]: s["Marks"] for s in record["Subjects"]}
+                }
+                for record in st.session_state.scraped_results
+            ])
         else:
-            st.warning("No data available for selected subject group")
+            df_raw_data = pd.DataFrame(columns=["Roll No", "Student Name"])
+
+
+    with tab2:
+        # st.subheader("Subject Group Analysis")
+
+        # if "saved_subject_groups" not in st.session_state:
+        #     st.session_state.saved_subject_groups = []
+        # if "temp_subjects" not in st.session_state:
+        #     st.session_state.temp_subjects = []
+
+        # all_subjects = list(subject_scores.keys())
+        # st.markdown("### Create New Group")
+
+        # # Checkboxes for each subject
+        # selected_subjects = []
+        # cols = st.columns(4)
+        # for i, subject in enumerate(all_subjects):
+        #     with cols[i % 4]:
+        #         if st.checkbox(subject, value=subject in st.session_state.temp_subjects, key=f"sub_chk_{subject}"):
+        #             selected_subjects.append(subject)
+        # st.session_state.temp_subjects = selected_subjects
+
+        # group_name = st.text_input("Group Name")
+
+        # if st.button("Save Group"):
+        #     if group_name and selected_subjects:
+        #         st.session_state.saved_subject_groups.append({
+        #             "name": group_name,
+        #             "subjects": selected_subjects
+        #         })
+        #         st.success(f"Group '{group_name}' saved.")
+        #         st.session_state.temp_subjects = []
+
+        # if st.session_state.saved_subject_groups:
+        #         show_top_scorers_table(st.session_state.saved_subject_groups, subject_scores, df_raw_data)
+        pass
+
     
     with tab3:
         st.subheader("Heatmap of Performance")
